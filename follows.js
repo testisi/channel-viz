@@ -69,8 +69,8 @@
 		xively.setKey(key);
 	}
 
-	function updateFeeds(feedId, datastreamIds, duration, interval) {
-		xively.feed.get(feedId, function(feedData) {
+	function updateFeeds(feedId, datastreamIds, duration, interval, xive) {
+		xive.feed.get(feedId, function(feedData) {
 			if(feedData.datastreams) {
 				if(datastreamIds == '' || !datastreamIds) {
 					feedData.datastreams.forEach(function(datastream) {
@@ -91,7 +91,7 @@
 					then.setTime(now.getTime() - diff);
 					if(updated.getTime() > then.getTime()) {
 						if(datastreamIds && datastreamIds != '' && datastreamIds.indexOf(datastream.id) >= 0) {
-							xively.datastream.history(feedId, datastream.id, {duration: duration, interval: interval, limit: 1000}, function(datastreamData) {
+							xive.datastream.history(feedId, datastream.id, {duration: duration, interval: interval, limit: 1000}, function(datastreamData) {
 
 								var series = [];
 								var points = [];
@@ -210,7 +210,7 @@
 		});
 	}
 
-	function setFeeds(feeds) {
+	function setFeeds(feeds,xive) {
 		$('#welcome').addClass('hidden');
 		feeds.forEach(function(id) {
 
@@ -226,7 +226,7 @@
 			if($('#feed-' + id)) {
 				$('#feed-' + id).remove();
 			}
-			xively.feed.history(id, {  duration: "6hours", interval: 30 }, function (data) {
+			xive.feed.history(id, {  duration: "6hours", interval: 30 }, function (data) {
 				if(data.id == id) {
 					// Duplicate Example to Build Feed UI
 					$('#exampleFeed').clone().appendTo('#feeds').attr('id', 'feed-' + id).removeClass('hidden');
@@ -324,39 +324,39 @@
 
 					$('#feed-' + data.id + ' .duration-hour').click(function() {
 						$('#loadingData').foundation('reveal', 'open');
-						updateFeeds(data.id, thisFeedDatastreams, '6hours', 30);
+						updateFeeds(data.id, thisFeedDatastreams, '6hours', 30, xive);
 						return false;
 					});
 
 					$('#feed-' + data.id + ' .duration-day').click(function() {
 						$('#loadingData').foundation('reveal', 'open');
-						updateFeeds(data.id, thisFeedDatastreams, '1day', 60);
+						updateFeeds(data.id, thisFeedDatastreams, '1day', 60,xive);
 						return false;
 					});
 
 					$('#feed-' + data.id + ' .duration-week').click(function() {
 						$('#loadingData').foundation('reveal', 'open');
-						updateFeeds(data.id, thisFeedDatastreams, '1week', 900);
+						updateFeeds(data.id, thisFeedDatastreams, '1week', 900, xive);
 						return false;
 					});
 
 					$('#feed-' + data.id + ' .duration-month').click(function() {
 						$('#loadingData').foundation('reveal', 'open');
-						updateFeeds(data.id, thisFeedDatastreams, '1month', 1800);
+						updateFeeds(data.id, thisFeedDatastreams, '1month', 1800,xive);
 						return false;
 					});
 
 					$('#feed-' + data.id + ' .duration-90').click(function() {
 						$('#loadingData').foundation('reveal', 'open');
-						updateFeeds(data.id, thisFeedDatastreams, '90days', 10800);
+						updateFeeds(data.id, thisFeedDatastreams, '90days', 10800,xive);
 						return false;
 					});
 
 					// Handle Datastreams
 					if(dataDuration != '' && dataInterval != 0) {
-						updateFeeds(data.id, thisFeedDatastreams, dataDuration, dataInterval);
+						updateFeeds(data.id, thisFeedDatastreams, dataDuration, dataInterval,xive);
 					} else {
-						updateFeeds(data.id, thisFeedDatastreams, '6hours', 30);
+						updateFeeds(data.id, thisFeedDatastreams, '6hours', 30,xive);
 					}
 				} else {
 					// Duplicate Example to Build Feed UI
@@ -372,6 +372,10 @@
 	if(hideForm == 1) {
 		$('#form').hide();
 	}
+
+	var IsiXisi1 = new XivelyClient();
+
+IsiXisi1.setKey('EOz6qQrWb0i2boheArcjfblGSNLeB69iQ6pH7HwPKqpEXjyj');
 
 	var today = new Date();
 	var yesterday = new Date(today.getTime()-1000*60*60*24*1);
@@ -413,7 +417,7 @@
 	if(key != '' && feedString != '') {
 		setApiKey($('#apiKeyInput').val());
 		feeds = $('#feedsInput').val().replace(/\s+/g, '').split(',');
-		setFeeds(feeds);
+		setFeeds(feeds,xively);
 	}
 
 	if(key != '') {
