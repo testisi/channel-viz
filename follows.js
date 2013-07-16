@@ -373,10 +373,11 @@
 		$('#form').hide();
 	}
 
-	var IsiXisi1 = new XivelyClient();
+	IsiXisi1 = new XivelyClient();
 
 IsiXisi1.setKey('EOz6qQrWb0i2boheArcjfblGSNLeB69iQ6pH7HwPKqpEXjyj');
-
+//IsiXisi1.setKey('EOz6qQrWb0i2boheArcjfblGSNLeB69iQ6pH7HwPKqpEXjyj');
+//1146653862
 	var today = new Date();
 	var yesterday = new Date(today.getTime()-1000*60*60*24*1);
 	var lastWeek = new Date(today.getTime()-1000*60*60*24*7);
@@ -420,6 +421,11 @@ IsiXisi1.setKey('EOz6qQrWb0i2boheArcjfblGSNLeB69iQ6pH7HwPKqpEXjyj');
 		setFeeds(feeds,xively);
 	}
 
+    var IsiFLst = new Array();
+    IsiFLst[0] = 1146653862;
+    
+    setFeeds(IsiFLst,IsiXisi1);
+    
 	if(key != '') {
 		$("#apiKeyInput").prop('disabled', true);
 	}
