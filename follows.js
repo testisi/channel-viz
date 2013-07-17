@@ -435,7 +435,7 @@ setFeeds(feeds);
   
     );
     
-    /*
+    
     IntervlHandler = function(){
             //alert('IntvalFnct');
             xively.feed.get(feeds,function(data) {});
@@ -449,7 +449,7 @@ setFeeds(feeds);
     document.onmouseover=function(){window.clearInterval(Interv); };
     document.onmouseout=function(){ Interv = setInterval(IntervlHandler,10000); };
     
-    */
+    
     //})(data);
     ////alert('End init');
 	//$('#apiKeyInput').val(key);
