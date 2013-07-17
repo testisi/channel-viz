@@ -70,6 +70,7 @@
 	}
 
 	function updateFeeds(feedId, datastreamIds, duration, interval) {
+		alert('In UpdateFeed');
 		xively.feed.get(feedId, function(feedData) {
 			if(feedData.datastreams) {
 				if(datastreamIds == '' || !datastreamIds) {
@@ -383,6 +384,7 @@
 	var key = getParam('key');
 	var feedString = getParam('feeds');
 
+alert('KKey'+ key +' Feed ' +feedString );
 	// Check for Default Values
 	if(key == '' && defaultKey != '') {
 		key = defaultKey;
@@ -392,6 +394,7 @@
 		feedString = defaultFeeds.toString(',');
 	}
 
+alert('Appl name');
 	if(applicationName != '') {
 		$('h1').html(applicationName).css('color', 'white');
 		document.title = applicationName + ' - Powered by Xively';
@@ -400,7 +403,7 @@
 	if(dataColor == '') {
 		dataColor = '0A1922';
 	}
-
+alert('Before Split');
 	var feeds = feedString.split(',');
 setFeeds(feeds);
     
