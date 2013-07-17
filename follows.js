@@ -416,7 +416,11 @@ alert('Before Split');
     
     setApiKey(key);
 setFeeds(feeds);
-    
+    xively.feed.get(feeds,function(data) {
+				alert('Feed GetFnct');
+  
+    );
+    alert('End init');
 	//$('#apiKeyInput').val(key);
 	//$('#feedsInput').val(feedString);
 /*
