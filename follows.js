@@ -211,7 +211,7 @@
 	}
 
 	function setFeeds(feeds) {
-		$('#welcome').addClass('hidden');
+		//$('#welcome').addClass('hidden');
 		feeds.forEach(function(id) {
 
 			var thisFeedId, thisFeedDatastreams;
@@ -228,9 +228,10 @@
 			}
 			xively.feed.history(id, {  duration: "6hours", interval: 30 }, function (data) {
 				if(data.id == id) {
+                
 					// Duplicate Example to Build Feed UI
 					$('#exampleFeed').clone().appendTo('#feeds').attr('id', 'feed-' + id).removeClass('hidden');
-
+/*
 					// ID
 					$('#feed-' + data.id + ' .title .value').html(data.title);
 
@@ -321,7 +322,7 @@
 							$('#feed-' + data.id + ' .disposition').addClass('hidden');
 							$('#feed-' + data.id + ' .map').addClass('hidden');
 					}
-
+*/
 					$('#feed-' + data.id + ' .duration-hour').click(function() {
 						$('#loadingData').foundation('reveal', 'open');
 						updateFeeds(data.id, thisFeedDatastreams, '6hours', 30);
@@ -360,8 +361,10 @@
 					}
 				} else {
 					// Duplicate Example to Build Feed UI
+                    /*
 					$('#exampleFeedNotFound').clone().appendTo('#feeds').attr('id', 'feed-' + id).removeClass('hidden');
 					$('#feed-' + id + ' h2').html(id);
+                    */
 				}
 			});
 		});
@@ -399,10 +402,11 @@
 	}
 
 	var feeds = feedString.split(',');
-
-	$('#apiKeyInput').val(key);
-	$('#feedsInput').val(feedString);
-
+setFeeds(feeds);
+    
+	//$('#apiKeyInput').val(key);
+	//$('#feedsInput').val(feedString);
+/*
 	$("#apiKeyInput").mouseover(function() {
 		console.log($("#apiKeyInput").prop('disabled'));
 		if($("#apiKeyInput").prop('disabled')) {
@@ -449,6 +453,7 @@
 		window.location = './index.html#key=' + $('#apiKeyInput').val() + '&feeds=' + $('#feedsInput').val();
 		return false;
 	});
+    */
 // END Initialization
 
 })( jQuery );
