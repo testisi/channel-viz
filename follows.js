@@ -417,7 +417,7 @@ alert('Before Split');
     setApiKey(key);
 setFeeds(feeds);
     xively.feed.get(feeds,function(data) {
-				alert('Feed GetFnct');
+				alert('Feed GetFnct');}
   
     );
     alert('End init');
