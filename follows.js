@@ -15,8 +15,8 @@
 	var defaultKey		= '', // Unique master Xively API key to be used as a default
 		defaultFeeds	= [], // Comma separated array of Xively Feed ID numbers
 		applicationName	= '', // Replaces Xively logo in the header
-		dataDuration	= '', // Default duration of data to be displayed // ref: https://xively.com/dev/docs/api/data/read/historical_data/
-		dataInterval	= 0, // Default interval for data to be displayed (in seconds)
+		dataDuration	= '1hour', // Default duration of data to be displayed // ref: https://xively.com/dev/docs/api/data/read/historical_data/
+		dataInterval	=  1, // Default interval for data to be displayed (in seconds)
 		dataColor		= '', // CSS HEX value of color to represent data (omit leading #)
 		hideForm		= 0; // To hide input form use value of 1, otherwise set to 0
 
@@ -70,7 +70,7 @@
 	}
 
 	function updateFeeds(feedId, datastreamIds, duration, interval) {
-		//alert('In UpdateFeed');
+		////alert('In UpdateFeed');
 		xively.feed.get(feedId, function(feedData) {
 			if(feedData.datastreams) {
 				if(datastreamIds == '' || !datastreamIds) {
@@ -84,16 +84,23 @@
 					var updated = new Date;
 					updated = updated.parseISO(datastream.at);
 					var diff = null;
+                    if(duration == '5minutes') diff = 300000;
+                    if(duration == '1hour') diff = 3600000;
 					if(duration == '6hours') diff = 21600000;
 					 if(duration == '1day') diff = 86400000;
 					 if(duration == '1week') diff = 604800000;
 					 if(duration == '1month') diff = 2628000000;
 					 if(duration == '90days') diff = 7884000000;
+                     
+                     
 					then.setTime(now.getTime() - diff);
 					if(updated.getTime() > then.getTime()) {
+                        //alert('CheckTime');
 						if(datastreamIds && datastreamIds != '' && datastreamIds.indexOf(datastream.id) >= 0) {
+                        
+                        //alert('Getting from Xively' );
 							xively.datastream.history(feedId, datastream.id, {duration: duration, interval: interval, limit: 1000}, function(datastreamData) {
-
+                            //alert('Got1');
 								var series = [];
 								var points = [];
 
@@ -149,7 +156,7 @@
 										element: document.querySelector('#graph-' + feedId + '-' + datastream.id),
 										width: 600,
 										height: 200,
-										renderer: 'line',
+										renderer: 'scatterplot',//'line',
 										min: parseFloat(datastream.min_value) - .25*(parseFloat(datastream.max_value) - parseFloat(datastream.min_value)),
 										max: parseFloat(datastream.max_value) + .25*(parseFloat(datastream.max_value) - parseFloat(datastream.min_value)),
 										padding: {
@@ -203,7 +210,7 @@
 							console.log('Datastream not requested! (' + datastream.id + ')');
 						}
 					} else {
-						$('#feed-' + feedId + ' .datastreams .datastream-' + datastream.id + ' .graphWrapper').html('<div class="//alert //alert-box no-info">Sorry, this datastream does not have any associated data.</div>');
+						$('#feed-' + feedId + ' .datastreams .datastream-' + datastream.id + ' .graphWrapper').html('<div class="alert alert-box no-info">Sorry, this datastream does not have any associated data.</div>');
 					}
 				});
 			}
@@ -212,7 +219,7 @@
 	}
 
 	function setFeeds(feeds) {
-		//alert('In SetFeeds');
+		////alert('In SetFeeds');
 		$('#welcome').addClass('hidden');
 		feeds.forEach(function(id) {
 
@@ -228,15 +235,15 @@
 			if($('#feed-' + id)) {
 				$('#feed-' + id).remove();
 			}
-			//alert('feed history' + id);
+			////alert('feed history' + id);
 			xively.feed.history(id, {  duration: "6hours", interval: 30 }, function (data) {
-            //alert('In history fnct');
+            ////alert('In history fnct');
 				if(data.id == id) {
                 
 					// Duplicate Example to Build Feed UI
-					//alert('Begin Dupl');
+					////alert('Begin Dupl');
 					$('#exampleFeed').clone().appendTo('#feeds').attr('id', 'feed-' + id).removeClass('hidden');
-					//alert('End Dupl');
+					////alert('End Dupl');
 /*
 					// ID
 					$('#feed-' + data.id + ' .title .value').html(data.title);
@@ -329,6 +336,12 @@
 							$('#feed-' + data.id + ' .map').addClass('hidden');
 					}
 */
+					$('#feed-' + data.id + ' .duration-singlehour').click(function() {
+						$('#loadingData').foundation('reveal', 'open');
+						updateFeeds(data.id, thisFeedDatastreams, '1hour', 1);
+						return false;
+					});
+                    
 					$('#feed-' + data.id + ' .duration-hour').click(function() {
 						$('#loadingData').foundation('reveal', 'open');
 						updateFeeds(data.id, thisFeedDatastreams, '6hours', 30);
@@ -359,7 +372,7 @@
 						return false;
 					});
 
-					//alert('End Durations');
+					////alert('End Durations');
 					// Handle Datastreams
 					if(dataDuration != '' && dataInterval != 0) {
 						updateFeeds(data.id, thisFeedDatastreams, dataDuration, dataInterval);
@@ -367,7 +380,7 @@
 						updateFeeds(data.id, thisFeedDatastreams, '6hours', 30);
 					}
 				} else {
-					//alert('Duplicate Example To build UI');
+					////alert('Duplicate Example To build UI');
 					// Duplicate Example to Build Feed UI
                     /*
 					$('#exampleFeedNotFound').clone().appendTo('#feeds').attr('id', 'feed-' + id).removeClass('hidden');
@@ -375,7 +388,7 @@
                     */
 				}
 			});
-            //alert('End SetFeeds' + id);
+            ////alert('End SetFeeds' + id);
 		});
 	}
 // END Function Declarations
@@ -392,7 +405,7 @@
 	var key = getParam('key');
 	var feedString = getParam('feeds');
 
-//alert('KKey'+ key +' Feed ' +feedString );
+////alert('KKey'+ key +' Feed ' +feedString );
 	// Check for Default Values
 	if(key == '' && defaultKey != '') {
 		key = defaultKey;
@@ -402,7 +415,7 @@
 		feedString = defaultFeeds.toString(',');
 	}
 
-//alert('Appl name');
+////alert('Appl name');
 	if(applicationName != '') {
 		$('h1').html(applicationName).css('color', 'white');
 		document.title = applicationName + ' - Powered by Xively';
@@ -411,16 +424,34 @@
 	if(dataColor == '') {
 		dataColor = '0A1922';
 	}
-//alert('Before Split');
+////alert('Before Split');
 	var feeds = feedString.split(',');
     
     setApiKey(key);
 setFeeds(feeds);
     xively.feed.get(feeds,function(data) {
-				//alert('Feed GetFnct');}
+				////alert('Feed GetFnct');
+                }
   
     );
-    //alert('End init');
+    
+    /*
+    IntervlHandler = function(){
+            //alert('IntvalFnct');
+            xively.feed.get(feeds,function(data) {});
+            setFeeds(feeds);
+            };
+    
+  //  (function(data){
+    //setTimeout(function(){xively.feed.get(feeds,function(data) {}},6000);
+    Interv = setInterval(IntervlHandler,10000);
+            
+    document.onmouseover=function(){window.clearInterval(Interv); };
+    document.onmouseout=function(){ Interv = setInterval(IntervlHandler,10000); };
+    
+    */
+    //})(data);
+    ////alert('End init');
 	//$('#apiKeyInput').val(key);
 	//$('#feedsInput').val(feedString);
 /*
