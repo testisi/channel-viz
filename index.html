@@ -1,464 +1,383 @@
-(function ( $ ){
+<!--
+	Visualising Xively Feeds with D3
+	Prepared by Paul Cheek
+	(c) 2013 LogMeIn, Inc.
+-->
 
-	/*
-	EXAMPLE CONFIGURATION
+<!DOCTYPE html>
+<!--[if IE 8]> <html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
 
-		var defaultKey	= 'fje329iun52ngtuijo2f4jeun432A', // Unique master Xively API key to be used as a default
-		defaultFeeds	= [61916,12425,94322], // Comma separated array of Xively Feed ID numbers
-		applicationName	= 'My Company\'s Application', // Replaces Xively logo in the header
-		dataDuration	= '90days', // Default duration of data to be displayed // ref: https://xively.com/dev/docs/api/data/read/historical_data/
-		dataInterval	= 10800, // Default interval for data to be displayed (in seconds)
-		dataColor		= '0A1922', // CSS HEX value of color to represent data (omit leading #)
-		hideForm		= 0;
-	*/
+<head>
 
-	var defaultKey		= '', // Unique master Xively API key to be used as a default
-		defaultFeeds	= [], // Comma separated array of Xively Feed ID numbers
-		applicationName	= '', // Replaces Xively logo in the header
-		dataDuration	= '', // Default duration of data to be displayed // ref: https://xively.com/dev/docs/api/data/read/historical_data/
-		dataInterval	= 0, // Default interval for data to be displayed (in seconds)
-		dataColor		= '', // CSS HEX value of color to represent data (omit leading #)
-		hideForm		= 0; // To hide input form use value of 1, otherwise set to 0
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width" />
+	<title>Visualising Xively Feeds with D3</title>
 
-// Function Declarations
+	<link type="text/css" rel="stylesheet" href="css/normalize.css" />
+	<link type="text/css" rel="stylesheet" href="css/foundation.min.css" />
+	<link type="text/css" rel="stylesheet" href="css/rickshaw.min.css">
+	<link rel="stylesheet" href="http://ajax.googleapis.com/ajax/libs/jqueryui/1.10.3/themes/smoothness/jquery-ui.min.css" type="text/css" media="all" />
 
-	// URL Parameters
-	function getParam(key) {
-	 	var value = location.hash.match(new RegExp(key+'=([^&]*)'));
-		if(value) {
-			return value[1];
-		} else {
-			return "";
+	<style type="text/css">
+		body, html {
+			max-width: 100%;
+			min-height: 100%;
+			overflow-x: hidden;
+			background: #666 url(img/loading.gif) center center no-repeat;
 		}
-	}
 
-	// Graph Annotations
-	function addAnnotation(force) {
-		if (messages.length > 0 && (force || Math.random() >= 0.95)) {
-			annotator.add(seriesData[2][seriesData[2].length-1].x, messages.shift());
+		.hidden {
+			display: none;
 		}
-	}
 
-	// Add One (1) Day to Date Object
-	Date.prototype.addDays = function (d) {
-		if (d) {
-			var t = this.getTime();
-			t = t + (d * 86400000);
-			this.setTime(t);
+		#xivelyContent {
+			background: #fff;
+			box-shadow: inset 0px 0px 100px #f0f0f0;
 		}
-	};
 
-	// Subtract One (1) Day to Date Object
-	Date.prototype.subtractDays = function (d) {
-		if (d) {
-			var t = this.getTime();
-			t = t - (d * 86400000);
-			this.setTime(t);
-		}
-	};
-
-	// Parse Xively ISO Date Format to Date Object
-	Date.prototype.parseISO = function(iso){
-		var stamp= Date.parse(iso);
-		if(!stamp) throw iso +' Unknown date format';
-		return new Date(stamp);
-	}
-
-	// Set xively API Key
-	function setApiKey(key) {
-		xively.setKey(key);
-	}
-
-	function updateFeeds(feedId, datastreamIds, duration, interval, xive) {
-		xive.feed.get(feedId, function(feedData) {
-			if(feedData.datastreams) {
-				if(datastreamIds == '' || !datastreamIds) {
-					feedData.datastreams.forEach(function(datastream) {
-						datastreamIds += datastream.id + " ";
-					});
-				}
-				feedData.datastreams.forEach(function(datastream) {
-					var now = new Date();
-					var then = new Date();
-					var updated = new Date;
-					updated = updated.parseISO(datastream.at);
-					var diff = null;
-					if(duration == '6hours') diff = 21600000;
-					 if(duration == '1day') diff = 86400000;
-					 if(duration == '1week') diff = 604800000;
-					 if(duration == '1month') diff = 2628000000;
-					 if(duration == '90days') diff = 7884000000;
-					then.setTime(now.getTime() - diff);
-					if(updated.getTime() > then.getTime()) {
-						if(datastreamIds && datastreamIds != '' && datastreamIds.indexOf(datastream.id) >= 0) {
-							xive.datastream.history(feedId, datastream.id, {duration: duration, interval: interval, limit: 1000}, function(datastreamData) {
-
-								var series = [];
-								var points = [];
-
-								// Create Datastream UI
-								$('.datastream-' + datastream.id).empty();
-								$('.datastream-' + datastream.id).remove();
-								$('#feed-' + feedId + ' .datastream.hidden').clone().appendTo('#feed-' + feedId + ' .datastreams').addClass('datastream-' + datastream.id).removeClass('hidden');
-
-								// Check for Datastream Tags
-								var tagsHtml = '';
-								if(datastreamData.tags) {
-									tagsHtml = '<div style="font-size: 14px;"><span class="radius secondary label">' + datastreamData.tags.join('</span> <span class="radius secondary label">') + '</span></div>';
-								} else {
-									tagsHtml = '';
-								}
-
-								// Fill Datastream UI with Data
-								$('#feed-' + feedId + ' .datastreams .datastream-' + datastream.id + ' .datastream-name').html(datastream.id);
-								$('#feed-' + feedId + ' .datastreams .datastream-' + datastream.id + ' .datastream-value').html(datastream.current_value);
-
-								// Include Datastream Unit (If Available)
-								if(datastream.unit) {
-									if(datastream.unit.symbol) {
-										$('#feed-' + feedId + ' .datastreams .datastream-' + datastream.id + ' .datastream-value').html(datastream.current_value + datastream.unit.symbol);
-									} else {
-										$('#feed-' + feedId + ' .datastreams .datastream-' + datastream.id + ' .datastream-value').html(datastream.current_value);
-									}
-								} else {
-									$('#feed-' + feedId + ' .datastreams .datastream-' + datastream.id + ' .datastream-value').html(datastream.current_value);
-								}
-								$('.datastream-' + datastream.id).removeClass('hidden');
-
-								// Historical Datapoints
-								if(datastreamData.datapoints) {
-
-									// Add Each Datapoint to Array
-									datastreamData.datapoints.forEach(function(datapoint) {
-										points.push({x: new Date(datapoint.at).getTime()/1000.0, y: parseFloat(datapoint.value)});
-									});
-
-									// Add Datapoints Array to Graph Series Array
-									series.push({
-										name: datastream.id,
-										data: points,
-										color: '#' + dataColor
-									});
-
-									// Initialize Graph DOM Element
-									$('#feed-' + feedId + ' .datastreams .datastream-' + datastream.id + ' .graph').attr('id', 'graph-' + feedId + '-' + datastream.id);
-
-						 			// Build Graph
-									var graph = new Rickshaw.Graph( {
-										element: document.querySelector('#graph-' + feedId + '-' + datastream.id),
-										width: 600,
-										height: 200,
-										renderer: 'line',
-										min: parseFloat(datastream.min_value) - .25*(parseFloat(datastream.max_value) - parseFloat(datastream.min_value)),
-										max: parseFloat(datastream.max_value) + .25*(parseFloat(datastream.max_value) - parseFloat(datastream.min_value)),
-										padding: {
-											top: 0.02,
-											right: 0.02,
-											bottom: 0.02,
-											left: 0.02
-										},
-										series: series
-									});
-
-									graph.render();
-
-									var ticksTreatment = 'glow';
-
-									// Define and Render X Axis (Time Values)
-									var xAxis = new Rickshaw.Graph.Axis.Time( {
-										graph: graph,
-										ticksTreatment: ticksTreatment
-									});
-									xAxis.render();
-
-									// Define and Render Y Axis (Datastream Values)
-									var yAxis = new Rickshaw.Graph.Axis.Y( {
-										graph: graph,
-										tickFormat: Rickshaw.Fixtures.Number.formatKMBT,
-										ticksTreatment: ticksTreatment
-									});
-									yAxis.render();
-
-									// Enable Datapoint Hover Values
-									var hoverDetail = new Rickshaw.Graph.HoverDetail({
-										graph: graph,
-										formatter: function(series, x, y) {
-											var swatch = '<span class="detail_swatch" style="background-color: ' + series.color + ' padding: 4px;"></span>';
-											var content = swatch + "&nbsp;&nbsp;" + parseFloat(y) + '&nbsp;&nbsp;<br>';
-											return content;
-										}
-									});
-
-									$('#feed-' + feedId + ' .datastreams .datastream-' + datastream.id + ' .slider').prop('id', 'slider-' + feedId + '-' + datastream.id);
-									var slider = new Rickshaw.Graph.RangeSlider({
-	            	   					graph: graph,
-	        	       					element: $('#slider-' + feedId + '-' + datastream.id)
-	               					});
-								} else {
-									$('#feed-' + feedId + ' .datastreams .datastream-' + datastream.id + ' .graphWrapper').addClass('hidden');
-								}
-							});
-						} else {
-							console.log('Datastream not requested! (' + datastream.id + ')');
-						}
-					} else {
-						$('#feed-' + feedId + ' .datastreams .datastream-' + datastream.id + ' .graphWrapper').html('<div class="alert alert-box no-info">Sorry, this datastream does not have any associated data.</div>');
-					}
-				});
+			.graphWrapper {
+				-moz-box-shadow:inset 0px 0px 50px 25px #ffffff;
+				-webkit-box-shadow:inset 0px 0px 50px 25px #ffffff;
+				box-shadow:inset 0px 0px 50px 25px #ffffff;
+				background-image: linear-gradient(bottom, rgb(255,255,255) 30%, rgb(245,245,245) 97%);
+				background-image: -o-linear-gradient(bottom, rgb(255,255,255) 30%, rgb(245,245,245) 97%);
+				background-image: -moz-linear-gradient(bottom, rgb(255,255,255) 30%, rgb(245,245,245) 97%);
+				background-image: -webkit-linear-gradient(bottom, rgb(255,255,255) 30%, rgb(245,245,245) 97%);
+				background-image: -ms-linear-gradient(bottom, rgb(255,255,255) 30%, rgb(245,245,245) 97%);
+				background-image: -webkit-gradient(
+					linear,
+					left bottom,
+					left top,
+					color-stop(0.3, rgb(255,255,255)),
+					color-stop(0.97, rgb(245,245,245))
+				);
 			}
-			$('#loadingData').foundation('reveal', 'close');
-		});
-	}
+	</style>
 
-	function setFeeds(feeds,xive) {
-		$('#welcome').addClass('hidden');
-		feeds.forEach(function(id) {
+	<script src="http://ajax.googleapis.com/ajax/libs/jquery/2.0.0/jquery.min.js"></script>
+	<script src="http://ajax.googleapis.com/ajax/libs/jqueryui/1.10.3/jquery-ui.min.js"></script>
+	<script src="js/custom.modernizr.js"></script>
+	<script src="js/xivelyjs-1.0.0.min.js"></script>
+	<script src="js/d3.v2.js"></script>
+	<script src="js/rickshaw.min.js"></script>
 
-			var thisFeedId, thisFeedDatastreams;
-			if(id.indexOf('!') > 0) {
-				thisFeedId = id.substring(0, id.indexOf('!'));
-				thisFeedDatastreams = id.substring(id.indexOf('!')+1).split('!');
-			} else {
-				thisFeedId = id;
-			}
-			id = thisFeedId;
+</head>
+<body>
 
-			if($('#feed-' + id)) {
-				$('#feed-' + id).remove();
-			}
-			xive.feed.history(id, {  duration: "6hours", interval: 30 }, function (data) {
-				if(data.id == id) {
-					// Duplicate Example to Build Feed UI
-					$('#exampleFeed').clone().appendTo('#feeds').attr('id', 'feed-' + id).removeClass('hidden');
+	<!-- Header -->
+	<div style="background: #101C24;">
+		<div class="row">
+			<div class="large-12 columns">
+				<h1 style="color: #FFF; text-shadow: 0px 1px 0px #000;">
+					PDAs
+				</h1>
+			</div>
+		</div>
+	</div>
+	<!-- Form -->
+	<div id="form" style="background: #F0F0F0; border-bottom: 1px solid #CCC; padding: 25px; padding-bottom: 15px;">
+		<div class="row">
+			<div class="large-5 columns">
+				<div class="row collapse">
+					<div class="small-3 columns">
+						<span class="prefix">API Key</span>
+					</div>
+					<div class="small-9 columns">
+						<input type="text" placeholder="Valid Master API Key" id="apiKeyInput">
+					</div>
+				</div>
+			</div>
+			<div class="large-5 columns">
+				<div class="row collapse">
+					<div class="small-3 columns">
+						<span class="prefix">Feed ID's</span>
+					</div>
+					<div class="small-9 columns">
+						<input type="text" placeholder="Comma separated" id="feedsInput">
+					</div>
+				</div>
+			</div>
+			<div class="large-2 columns">
+				<a id="setFeeds" href="#" data-reveal-id="secondModal" class="secondary button small expand">
+					Visualize &raquo;
+				</a>
+			</div>
+		</div>
+	</div>
+	<!-- Page Content -->
+	<div id="xivelyContent" style="position: relative;">
+		<a href="https://github.com/xively/channel-viz" class="hide-for-medium hide-for-small"><img style="position: absolute; top: 0; right: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_right_gray_6d6d6d.png" alt="Fork me on GitHub"></a>
+		<div id="welcome">
+			<div class="row">
+				<div class="large-1 columns">&nbsp;</div>
+				<div class="large-10 columns text-center">
+					<br/><br/><br/><br/><br/><br/><br/>
+					<h1 class="subheader" style="text-align: center;">Welcome to Xively!</h1>
+					<p>This page is an example of just one of many ways you can visualise your data on Xively.<br/>It was created with open-source tools, and reads data from Xively with the Xively JavaScript library.</p>
+					<p>Read the tutorial <i>(comming soon)</i> on how to make and customise your own.</p>
+				</div>
+				<div class="large-1 columns">&nbsp;</div>
+			</div>
+			<div class="row">
+				<div class="large-12 columns">
+					<br/><br/><br/><br/><hr/><br/><br/><br/><br/>
+					<div class="row">
+						<div class="large-4 columns">
+							<div class="hero panel">
+								<p style="font-size: 14px;">To use this page, enter a Master API Key from your Xively account, and a list of the Feeds that you would like to display, into the forms above. You can view multiple Feeds by separating them with a comma, and select individual channels with an exclamation mark.</p>
+							</div>
+						</div>
+						<div class="large-8 columns">
+							<h4 class="subheader">Examples</h4>
+							<hr/>
+							<div class="row">
+								<div class="large-4 columns">
+									<strong style="text-transform: uppercase;">Multiple Feeds</strong>
+								</div>
+								<div class="large-8 columns">
+									<pre><em>61916,61916</em></pre>
+								</div>
+							</div>
+							<hr/>
+							<div class="row">
+								<div class="large-4 columns">
+									<strong style="text-transform: uppercase;">Individual Channels</strong><br/>
+									<small>separate with exclamation marks</small>
+								</div>
+								<div class="large-8 columns">
+									<pre><em>61916!random5!random3600</em></pre><br/>
+									<pre><em>61916!random5,61916!random3600</em></pre>
+								</div>
+							</div>
+						</div>
+					</div>
+					<br/><br/><br/><br/><hr/><br/><br/><br/><br/>
+				</div>
+			</div>
+			<div class="row">
+				<div class="large-2 columns">&nbsp;</div>
+				<div class="large-8 columns">
+					<h5 class="subheader text-center">To begin visualizing data, enter your Xively Master API key above!</h5>
+					<br/><br/><br/><br/><br/><br/><br/>
+				</div>
+				<div class="large-2 columns">&nbsp;</div>
+			</div>
+		</div>
+		<div id="invalidApiKey" class="hidden">
+			<div class="row">
+				<div class="large-2 columns">&nbsp;</div>
+				<div class="large-8 columns">
+					<br/><br/><br/>
+					<h1 class="subheader" style="text-align: center;">Uh oh!</h1>
+					<h2 class="subheader" style="text-align: center;">Your API key is invalid!</h2>
+					<p>Please try again or generate a new key on Xively. It is important to keep in mind that this API key must be a global API key in order to work in this example. Using an application-specific API key will cause this example to malfunction.</p>
 
-					// ID
-					$('#feed-' + data.id + ' .title .value').html(data.title);
+					<a href="#" data-reveal-id="exampleModal" class="openStart radius secondary button expand">Ready When You Are...</a>
+					<br/><br/><br/>
+				</div>
+				<div class="large-2 columns">&nbsp;</div>
+			</div>
+		</div>
+		<div id="validApiKey" class="hidden">
+			<div class="row">
+				<div class="large-2 columns">&nbsp;</div>
+				<div class="large-8 columns">
+					<br/><br/><br/>
+					<br/><br/><br/>
+					<h1 class="subheader" style="text-align: center;">Connected to Xively!</h1>
+					<h5 class="subheader text-center">To begin visualizing data, enter your Xively feed information above...</h5>
+				</div>
+				<div class="large-2 columns">&nbsp;</div>
+			</div>
+			<div class="row">
+				<div class="large-12 columns">
+					<br/><br/><br/><br/><hr/><br/><br/><br/><br/>
+					<div class="row">
+						<div class="large-4 columns">
+							<div class="hero panel">
+								<p style="font-size: 14px;">To use this page, enter a Master API Key from your Xively account, and a list of the Feeds that you would like to display, into the forms above. You can view multiple Feeds by separating them with a comma, and select individual channels with an exclamation mark.</p>
+							</div>
+						</div>
+						<div class="large-8 columns">
+							<h4 class="subheader">Examples</h4>
+							<hr/>
+							<div class="row">
+								<div class="large-4 columns">
+									<strong style="text-transform: uppercase;">Multiple Feeds</strong>
+								</div>
+								<div class="large-8 columns">
+									<pre><em>61916,61916</em></pre>
+								</div>
+							</div>
+							<hr/>
+							<div class="row">
+								<div class="large-4 columns">
+									<strong style="text-transform: uppercase;">Individual Channels</strong><br/>
+									<small>separate with exclamation marks</small>
+								</div>
+								<div class="large-8 columns">
+									<pre><em>61916!random5!random3600</em></pre><br/>
+									<pre><em>61916!random5,61916!random3600</em></pre>
+								</div>
+							</div>
+						</div>
+					</div>
+					<br/><br/><br/><br/>
+					<br/><br/><br/><br/>
+					<br/><br/><br/><br/>
+				</div>
+			</div>
+		</div>
+		<div id="feeds">
+			<div class="feed hidden" id="exampleFeedNotFound" style="line-height: 25px; padding-top: 25px;">
+				<div class="row title">
+					<div class="large-12 columns">
+						<h2 class="subheader value">Loading Feed Data...</h2>
 
-					// Title
-					$('#feed-' + data.id + ' .id .value').html(data.id);
+						<div class="alert alert-box no-info">
+							Sorry, this feed could not be found.
+						</div>
+					</div>
+				</div>
+			</div>
+			<div class="feed hidden" id="exampleFeed" style="line-height: 25px; padding-top: 25px;">
+				<div class="row title">
+					<div class="large-12 columns">
+						<h2 class="subheader value">Loading Feed Data...</h2>
+					</div>
+				</div>
+				<div class="row">
+					<div class="large-7 columns">
+						<h4 class="subheader">Meta</h4>
+						<div class="row id">
+							<div class="large-4 columns"><strong>ID</strong></div>
+							<div class="large-8 columns value"></div>
+						</div>
+						<div class="row description">
+							<div class="large-4 columns"><strong>Description</strong></div>
+							<div class="large-8 columns value"></div>
+						</div>
+						<div class="row link">
+							<div class="large-4 columns"><strong>Link</strong></div>
+							<div class="large-8 columns value"><a href="#">View on Xively &raquo;</a></div>
+						</div>
+						<div class="row creator">
+							<div class="large-4 columns"><strong>Creator</strong></div>
+							<div class="large-8 columns value"></div>
+						</div>
+						<div class="row updated">
+							<div class="large-4 columns"><strong>Updated</strong></div>
+							<div class="large-8 columns value"></div>
+						</div>
+						<div class="row tags">
+							<div class="large-4 columns"><strong>Tags</strong></div>
+							<div class="large-8 columns value"></div>
+						</div>
+					</div>
+					<div class="large-5 columns">
+						<h4 class="subheader">Location</h4>
+						<div class="alert alert-box hidden no-location">
+							Sorry, no location information is available.
+						</div>
+						<div class="row location-name">
+							<div class="large-4 columns"><strong>Name</strong></div>
+							<div class="large-8 columns value"></div>
+						</div>
+						<div class="row latitude">
+							<div class="large-4 columns"><strong>Latitude</strong></div>
+							<div class="large-8 columns value"></div>
+						</div>
+						<div class="row longitude">
+							<div class="large-4 columns"><strong>Longitude</strong></div>
+							<div class="large-8 columns value"></div>
+						</div>
+						<div class="row elevation">
+							<div class="large-4 columns"><strong>Elevation</strong></div>
+							<div class="large-8 columns value"></div>
+						</div>
+						<div class="row disposition">
+							<div class="large-4 columns"><strong>Disposition</strong></div>
+							<div class="large-8 columns value"></div>
+						</div>
+						<div class="row map">
+							<div class="large-4 columns"><strong>Map</strong></div>
+							<div class="large-8 columns value"><a href="#">View on Google Maps &raquo;</a></div>
+						</div>
+					</div>
+				</div>
+				<div class="row">
+					<div class="large-12 columns">
+						<div class="button-group" style="float: right;">
+							<a href="#" class="small button secondary duration-hour">6 Hrs</a>
+							<a href="#" class="small button secondary duration-day">Day</a>
+							<a href="#" class="small button secondary duration-week">Week</a>
+							<a href="#" class="small button secondary duration-month">Month</a>
+							<a href="#" class="small button secondary duration-90">90 Days</a>
+						</div>
+					</div>
+				</div>
+				<div class="row">
+					<div class="large-12 columns">
+						<div class="datastreams" style="padding-bottom: 15px;">
+							<div class="datastream hidden">
+								<hr/>
+								<div class="row">
+									<div class="large-9 columns datastream-name subheader" style="font-size: 24px;">
+										Datastream Name
+									</div>
+									<div class="large-3 columns datastream-value subheader" style="font-size: 24px; text-align: right;">
+										420
+									</div>
+								</div>
+								<div class="row">
+									<div class="large-12 columns">
+										<div class="graphWrapper" style="margin-top: 15px; padding: 10px; text-align: center;">
+											<div class="graph" style="width: 600px; margin: auto;"></div>
+										</div>
+										<div class="slider" style="width: 600px; height: 15px; margin: auto;"></div>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+					<hr/>
+				</div>
+			</div>
+		</div>
+	</div>
 
-					// Description
-					if(data.description) {
-						$('#feed-' + data.id + ' .description .value').html(data.description);
-					} else {
-						$('#feed-' + data.id + ' .description').addClass('hidden');
-					}
+	<!-- Footer -->
+	<div style="background: #0D1B23;">
+		<div style="padding: 15px;">
+			<div class="row">
+				<div class="large-8 columns" style="color: rgb(81, 98, 111); padding-top: 10px; padding-bottom: 10px;">
+					<small>
+						This page was created with open-source tools, and uses data from <a style="font-weight: bold; color: rgb(81, 98, 111);" href="https://xively.com">Xively</a>. Read the <a style="font-weight: bold; color: rgb(81, 98, 111);" href="#">Tutorial (coming soon)</a> on how to make your own.
+					</small>
+				</div>
+				<div class="large-4 columns" style="color: rgb(81, 98, 111); padding-top: 10px; padding-bottom: 10px;">
+					<small>
+						<a style="color: rgb(81, 98, 111);" href="https://github.com/xively/channel-viz/blob/master/LICENSE.md">This library is Open Source, under the BSD 3-Clause license.</a>
+					</small>
+				</div>
+			</div>
+		</div>
+	</div>
 
-					// Link
-					$('#feed-' + data.id + ' .link .value').html('<a href="https://xively.com/feeds/' + data.id + '/">View on Xively &raquo;</a>');
+	<!-- Modals -->
+	<div id="loadingData" class="reveal-modal small text-center">
+		<br/><br/><h2 class="subheader">Loading...</h2><br/><br/>
+	</div>
 
-					// Creator
-					var creator = /[^/]*$/.exec(data.creator)[0];
-					$('#feed-' + data.id + ' .creator .value').html('<a href="' + data.creator + '">' + creator + '</a>');
+	<script>
+		document.write('<script src=' +
+		('__proto__' in {} ? 'js/zepto' : 'js/jquery') +
+		'.js><\/script>')
+	</script>
 
-					// Date Updated
-					$('#feed-' + data.id + ' .updated .value').html(data.updated);
+	<script src="js/foundation.min.js"></script>
+	<script src="follows.js"></script>
 
-					// Tags
-					if(data.tags) {
-						$('#feed-' + data.id + ' .tags .value').html('<span class="radius secondary label">' + data.tags.join('</span> <span class="radius secondary label">') + '</span>');
-					} else {
-						$('#feed-' + data.id + ' .tags').addClass('hidden');
-					}
-
-					// Location
-					if(data.location) {
-						if(data.location.name || data.location.lat || data.location.ele || data.location.disposition) {
-
-							// Location Name
-							if(data.location.name) {
-								$('#feed-' + data.id + ' .location-name .value').html(data.location.name);
-							} else {
-								$('#feed-' + data.id + ' .location-name').addClass('hidden');
-							}
-
-							// Location Coordinates
-							if(data.location.lat && data.location.lon) {
-								$('#feed-' + data.id + ' .latitude .value').html(data.location.lat);
-								$('#feed-' + data.id + ' .longitude .value').html(data.location.lon);
-							} else {
-								$('#feed-' + data.id + ' .latitude').addClass('hidden');
-								$('#feed-' + data.id + ' .longitude').addClass('hidden');
-							}
-
-							// Location Elevation
-							if(data.location.ele) {
-								$('#feed-' + data.id + ' .elevation .value').html(data.location.ele);
-							} else {
-								$('#feed-' + data.id + ' .elevation').addClass('hidden');
-							}
-
-							// Location Disposition
-							if(data.location.disposition) {
-								$('#feed-' + data.id + ' .disposition .value').html(data.location.disposition);
-							} else {
-								$('#feed-' + data.id + ' .disposition').addClass('hidden');
-							}
-
-							// Location Map
-							if(data.location.lat && data.location.lon) {
-								$('#feed-' + data.id + ' .map .value').html('<a href="http://maps.google.com/maps?z=14&t=m&q=loc:' + data.location.lat + '+' + data.location.lon + '">View on Google Maps &raquo;</a>');
-							} else {
-								$('#feed-' + data.id + ' .map').addClass('hidden');
-							}
-						} else {
-							// Location Information Unavailable
-							$('#feed-' + data.id + ' .no-location').removeClass('hidden');
-								$('#feed-' + data.id + ' .location-name').addClass('hidden');
-								$('#feed-' + data.id + ' .latitude').addClass('hidden');
-								$('#feed-' + data.id + ' .longitude').addClass('hidden');
-								$('#feed-' + data.id + ' .elevation').addClass('hidden');
-								$('#feed-' + data.id + ' .disposition').addClass('hidden');
-								$('#feed-' + data.id + ' .map').addClass('hidden');
-						}
-					} else {
-						// Location Information Unavailable
-						$('#feed-' + data.id + ' .no-location').removeClass('hidden');
-							$('#feed-' + data.id + ' .location-name').addClass('hidden');
-							$('#feed-' + data.id + ' .latitude').addClass('hidden');
-							$('#feed-' + data.id + ' .longitude').addClass('hidden');
-							$('#feed-' + data.id + ' .elevation').addClass('hidden');
-							$('#feed-' + data.id + ' .disposition').addClass('hidden');
-							$('#feed-' + data.id + ' .map').addClass('hidden');
-					}
-
-					$('#feed-' + data.id + ' .duration-hour').click(function() {
-						$('#loadingData').foundation('reveal', 'open');
-						updateFeeds(data.id, thisFeedDatastreams, '6hours', 30, xive);
-						return false;
-					});
-
-					$('#feed-' + data.id + ' .duration-day').click(function() {
-						$('#loadingData').foundation('reveal', 'open');
-						updateFeeds(data.id, thisFeedDatastreams, '1day', 60,xive);
-						return false;
-					});
-
-					$('#feed-' + data.id + ' .duration-week').click(function() {
-						$('#loadingData').foundation('reveal', 'open');
-						updateFeeds(data.id, thisFeedDatastreams, '1week', 900, xive);
-						return false;
-					});
-
-					$('#feed-' + data.id + ' .duration-month').click(function() {
-						$('#loadingData').foundation('reveal', 'open');
-						updateFeeds(data.id, thisFeedDatastreams, '1month', 1800,xive);
-						return false;
-					});
-
-					$('#feed-' + data.id + ' .duration-90').click(function() {
-						$('#loadingData').foundation('reveal', 'open');
-						updateFeeds(data.id, thisFeedDatastreams, '90days', 10800,xive);
-						return false;
-					});
-
-					// Handle Datastreams
-					if(dataDuration != '' && dataInterval != 0) {
-						updateFeeds(data.id, thisFeedDatastreams, dataDuration, dataInterval,xive);
-					} else {
-						updateFeeds(data.id, thisFeedDatastreams, '6hours', 30,xive);
-					}
-				} else {
-					// Duplicate Example to Build Feed UI
-					$('#exampleFeedNotFound').clone().appendTo('#feeds').attr('id', 'feed-' + id).removeClass('hidden');
-					$('#feed-' + id + ' h2').html(id);
-				}
-			});
-		});
-	}
-// END Function Declarations
-
-// BEGIN Initialization
-	if(hideForm == 1) {
-		$('#form').hide();
-	}
-
-	//IsiXisi1 = new XivelyClient();
-
-//IsiXisi1.setKey('EOz6qQrWb0i2boheArcjfblGSNLeB69iQ6pH7HwPKqpEXjyj');
-//IsiXisi1.setKey('EOz6qQrWb0i2boheArcjfblGSNLeB69iQ6pH7HwPKqpEXjyj');
-//1146653862
-	var today = new Date();
-	var yesterday = new Date(today.getTime()-1000*60*60*24*1);
-	var lastWeek = new Date(today.getTime()-1000*60*60*24*7);
-
-	var key = getParam('key');
-	var feedString = getParam('feeds');
-
-	// Check for Default Values
-	if(key == '' && defaultKey != '') {
-		key = defaultKey;
-	}
-
-	if(feedString == '' && defaultFeeds.toString(',') != '') {
-		feedString = defaultFeeds.toString(',');
-	}
-
-	if(applicationName != '') {
-		$('h1').html(applicationName).css('color', 'white');
-		document.title = applicationName + ' - Powered by Xively';
-	}
-
-	if(dataColor == '') {
-		dataColor = '0A1922';
-	}
-
-	var feeds = feedString.split(',');
-
-	$('#apiKeyInput').val(key);
-	$('#feedsInput').val(feedString);
-
-	$("#apiKeyInput").mouseover(function() {
-		console.log($("#apiKeyInput").prop('disabled'));
-		if($("#apiKeyInput").prop('disabled')) {
-			$("#apiKeyInput").prop('disabled', false);
-		}
-	});
-
-	if(key != '' && feedString != '') {
-		setApiKey($('#apiKeyInput').val());
-		feeds = $('#feedsInput').val().replace(/\s+/g, '').split(',');
-		setFeeds(feeds,xively);
-	}
-
-    //var IsiFLst = new Array();
-    //IsiFLst = 1146653862;
-    
-    //setFeeds(IsiFLst,IsiXisi1);
-    
-	if(key != '') {
-		$("#apiKeyInput").prop('disabled', true);
-	}
-
-	$('#apiKeyInput').change(function() {
-		if($('#apiKeyInput').val() == '') {
-			$('#welcome').addClass('hidden');
-			$('#invalidApiKey').removeClass('hidden');
-			$('#validApiKey').addClass('hidden');
-		} else {
-			xively.setKey($('#apiKeyInput').val());
-			xively.feed.get(61916, function(data) {
-				if(data.id == 61916) {
-					$("#apiKeyInput").prop('disabled', true);
-					$('#welcome').addClass('hidden');
-					$('#validApiKey').removeClass('hidden');
-					$('#invalidApiKey').addClass('hidden');
-				} else {
-					$('#welcome').addClass('hidden');
-					$('#validApiKey').addClass('hidden');
-					$('#invalidApiKey').removeClass('hidden');
-				}
-			});
-		}
-		return false;
-	});
-
-	$('#setFeeds').click(function() {
-		setApiKey($('#apiKeyInput').val());
-		feeds = $('#feedsInput').val().replace(/\s+/g, '').split(',');
-		window.location = './index.html#key=' + $('#apiKeyInput').val() + '&feeds=' + $('#feedsInput').val();
-		return false;
-	});
-// END Initialization
-
-})( jQuery );
+</body>
+</html>
