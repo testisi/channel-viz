@@ -212,7 +212,8 @@
 	}
 
 	function setFeeds(feeds) {
-		//$('#welcome').addClass('hidden');
+		alert('In SetFeeds');
+		$('#welcome').addClass('hidden');
 		feeds.forEach(function(id) {
 
 			var thisFeedId, thisFeedDatastreams;
@@ -227,11 +228,14 @@
 			if($('#feed-' + id)) {
 				$('#feed-' + id).remove();
 			}
+			alert('feed history');
 			xively.feed.history(id, {  duration: "6hours", interval: 30 }, function (data) {
 				if(data.id == id) {
                 
 					// Duplicate Example to Build Feed UI
+					alert('Begin Dupl');
 					$('#exampleFeed').clone().appendTo('#feeds').attr('id', 'feed-' + id).removeClass('hidden');
+					alert('End Dupl');
 /*
 					// ID
 					$('#feed-' + data.id + ' .title .value').html(data.title);
@@ -354,6 +358,7 @@
 						return false;
 					});
 
+					alert('End Durations');
 					// Handle Datastreams
 					if(dataDuration != '' && dataInterval != 0) {
 						updateFeeds(data.id, thisFeedDatastreams, dataDuration, dataInterval);
@@ -361,6 +366,7 @@
 						updateFeeds(data.id, thisFeedDatastreams, '6hours', 30);
 					}
 				} else {
+					alert('Duplicate Example To build UI');
 					// Duplicate Example to Build Feed UI
                     /*
 					$('#exampleFeedNotFound').clone().appendTo('#feeds').attr('id', 'feed-' + id).removeClass('hidden');
