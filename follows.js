@@ -228,8 +228,9 @@
 			if($('#feed-' + id)) {
 				$('#feed-' + id).remove();
 			}
-			alert('feed history');
+			alert('feed history' + id);
 			xively.feed.history(id, {  duration: "6hours", interval: 30 }, function (data) {
+            alert('In history fnct');
 				if(data.id == id) {
                 
 					// Duplicate Example to Build Feed UI
@@ -374,6 +375,7 @@
                     */
 				}
 			});
+            alert('End SetFeeds' + id);
 		});
 	}
 // END Function Declarations
@@ -411,6 +413,8 @@ alert('Appl name');
 	}
 alert('Before Split');
 	var feeds = feedString.split(',');
+    
+    setApiKey(key);
 setFeeds(feeds);
     
 	//$('#apiKeyInput').val(key);
